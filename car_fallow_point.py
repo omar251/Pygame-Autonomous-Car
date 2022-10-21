@@ -1,18 +1,24 @@
 import math
-from pickle import TRUE
 from turtle import distance
-from numpy import source
 import pygame
 BLACK =(0,0,0,255)
 WHITE =(255,255,255,255)
+RED = (255,0,0,255)
+BLUE = (0,0,255,255)
+GREEN = (0,255,0,255)
 W,H =600,600
-HW,HH =W/2,H/2
+car_shift = 100,100
+HW,HH =(W/2)+car_shift[0],(H/2)+car_shift[1]
 AREA = W * H
 class Car:
-    def __init__(self,screen):
+    def __init__(self,screen,map):
+        self.map = map
         self.screen  = screen
         self.destination =[]
         self.source =[]
+        self.front_radars =[]
+        self.back_radars = []
+        self.radars =[]
         self.radar = HW,HH
         self.angle_count = 0
         self.dx,self.dy = 0,0
@@ -24,7 +30,8 @@ class Car:
         self.rect.center = self.source = self.destination = self.x,self.y = HW,HH 
         self.angle_of_rotation = self.current_angle = self.new_angle = self.rot_angle = 0 
         self.rotation_speed = 1    
-        self.car_moving = False
+        self.brakes = False
+        self.radar_length = self.max_radar = 100
     def rot_center(self,image, angle):
         orig_rect = image.get_rect()
         rot_image = pygame.transform.rotate(image, angle)
@@ -33,16 +40,75 @@ class Car:
         rot_image = rot_image.subsurface(rot_rect).copy()
         return rot_image
     def draw_Car(self): 
-        self.screen.blit(self.rotate_surface, self.rect)
+        # pygame.draw.rect(self.screen,(255,0,0),self.rect)
+        self.screen.blit(self.rotate_surface, self.rect)   
         # pygame.draw.line(self.screen,(255,0,0),self.rect.center, self.destination, 1)
-        pygame.draw.circle(self.screen,(255,0,0),self.destination,9,0)
-        pygame.draw.circle(self.screen,(0,255,0),self.rect.center,5,0)
-        pygame.draw.circle(self.screen,(0,0,255),self.destination,2,0) 
-    def check_radar(self,len = 100):
-        x = int(self.rect.center[0] + math.cos(math.radians(((self.rot_angle ) - 360))) * len)
-        y = int(self.rect.center[1] + math.sin(math.radians(((self.rot_angle ) - 360))) * len)
-        # dist = int(math.sqrt(math.pow(x - self.rect.center[0], 2) + math.pow(y - self.rect.center[1], 2)))
-        self.radar = x, y
+        pygame.draw.circle(self.screen,BLUE,self.destination,9,0)
+        pygame.draw.circle(self.screen,GREEN,self.rect.center,5,0)
+        # pygame.draw.circle(self.screen,BLUE,self.radar,2,0) 
+        # pygame.draw.line(self.screen,(0,255,0),self.rect.center, self.radar, 1)
+        self.draw_radar()
+    
+    def update_radars(self):
+        self.front_radars.clear()
+        for degree in [-45,0,45]:
+            self.check_radars(degree,200,1)
+        self.back_radars.clear()
+        for degree in [135,-135]:
+            self.check_radars(degree,100,-1)
+
+    def check_radars(self,degree = 0, radar_length = 100,radar_type=0):
+        self.max_radar = radar_length
+        self.radar_length = 0
+        radian =math.radians(self.rotation_speed - self.current_angle + degree)
+        dx,dy = int(math.cos(radian) * self.radar_length),int(math.sin(radian) * self.radar_length)
+        self.radar = x,y = self.rect.center[0] + dx, self.rect.center[1] + dy
+        while not self.map.get_at((x, y)) == (255, 255, 255, 255) and self.radar_length < self.max_radar:
+            self.radar_length += 1
+            radian =math.radians(self.rotation_speed - self.current_angle + degree)
+            dx,dy = int(math.cos(radian) * self.radar_length),int(math.sin(radian) * self.radar_length)
+            self.radar = x,y = self.rect.center[0] + dx, self.rect.center[1] + dy            
+        radar_distance = int(math.hypot(x - self.rect.center[0],y - self.rect.center[1]))  
+        # self.radars.append([(x,y),radar_distance])
+        if radar_type == -1:
+            self.back_radars.append([(x,y),radar_distance])
+        elif radar_type == 1:
+            self.front_radars.append([(x,y),radar_distance])
+
+    def draw_radar(self):
+        self.update_radars()
+        for r in self.front_radars:
+            pos = r[0]
+            if r[1] < 50:color = RED
+            else : color = GREEN
+            pygame.draw.line(self.screen, color, self.rect.center, pos, 1)
+            pygame.draw.circle(self.screen, color, pos, 5)  
+        for r in self.back_radars:
+            pos = r[0]
+            if r[1] < 50:color = RED
+            else : color = BLUE
+            pygame.draw.line(self.screen, color, self.rect.center, pos, 1)
+            pygame.draw.circle(self.screen, color, pos, 5)  
+    
+    def get_max_back_destination(self):  
+        self.update_radars()
+        back_radar_distances = [i[1] for i in self.back_radars]
+        back_destination = self.back_radars[back_radar_distances.index(max(back_radar_distances))][0] 
+        
+        return [back_destination,max(back_radar_distances)]
+    def get_destination(self):
+        self.update_radars() 
+        front_radar_distances = [i[1] for i in self.front_radars]
+        max_back_destination,max_back_distance = self.get_max_back_destination()
+        # print(max_back_distance,max(front_radar_distances))
+        if front_radar_distances[1] == max(front_radar_distances):
+            destination = self.front_radars[1][0]
+        elif max(front_radar_distances) < max_back_distance:
+            destination = max_back_destination
+        else:
+            destination = self.front_radars[front_radar_distances.index(max(front_radar_distances))][0] 
+    
+        return destination
     def calculate_directions(self): 
         if self.distance == 0 and self.angle_of_rotation == 0 :
             self.distance = int(math.hypot(self.destination[0] - self.source[0],self.destination[1] - self.source[1])/self.speed)  
@@ -52,12 +118,18 @@ class Car:
             self.dy = math.sin(radians)*self.speed
             
             # self.new_angle = self.rot_angle = int(math.degrees(math.atan2(-(self.destination[1] - self.rect.center[1]), self.destination[0] - self.rect.center[0])))
-            self.new_angle = self.rot_angle = int(math.degrees(math.atan2(-(self.destination[1] - self.source[1]), self.destination[0] - self.source[0])))
-            self.angle_of_rotation = x =(self.new_angle - self.current_angle) % 360
+            self.new_angle = int(math.degrees(math.atan2(-(self.destination[1] - self.source[1]), self.destination[0] - self.source[0])))
+            
+            self.angle_of_rotation = (self.new_angle - self.current_angle) % 360             
             if abs(self.angle_of_rotation) > 180:
-                self.angle_of_rotation = int(self.angle_of_rotation - (360 * (self.angle_of_rotation/abs(self.angle_of_rotation))))
+                self.angle_of_rotation = (self.angle_of_rotation - 180) * -int(self.angle_of_rotation/abs(self.angle_of_rotation))
+
+            self.angle_of_rotation = (self.new_angle - self.current_angle) % 180
+            if abs(self.angle_of_rotation) > abs(abs(self.angle_of_rotation) - 180):
+                self.angle_of_rotation = int(abs(abs(self.angle_of_rotation) - 180) * -(abs(self.angle_of_rotation)/self.angle_of_rotation))
+
     def rotate_car(self):
-        if not self.distance == 0:
+        if not self.distance == 0 :
             self.calculate_rotation_speed()
             self.current_angle += self.rotation_speed
             self.angle_of_rotation -= self.rotation_speed
@@ -67,7 +139,7 @@ class Car:
         if self.angle_of_rotation == 0:
             self.rotation_speed = 0
         else:
-            for i in range(1,abs(self.angle_of_rotation)+1,1):
+            for i in range(1,abs(int(self.angle_of_rotation))+1,1):
                 if abs(self.angle_of_rotation)%i == 0:
                     speeds.append(self.angle_of_rotation/i)
             if(len(speeds)>0):
@@ -81,7 +153,7 @@ class Car:
                 if abs(self.distance)%i == 0:
                     speeds.append(self.distance/i)
             if(len(speeds)>0):
-                self.calculated_speed = int(speeds.pop(int((len(speeds))/2)))               
+                self.calculated_speed = max(int(speeds.pop(int((len(speeds))/2))),self.speed)              
     def move_car_to_point(self):
         if not self.distance == 0 and self.angle_of_rotation == 0 :  
             self.calculate_speed()     
@@ -89,14 +161,23 @@ class Car:
             self.x += self.dx * self.calculated_speed
             self.y += self.dy * self.calculated_speed
             self.rect.center = self.source = (self.x,self.y)
-    def move_to_point(self,point):
-        self.destination = point 
+    def brake_car(self):
+        self.destination = self.rect.center
+        self.distance = self.angle_of_rotation = 0
+    def movecar(self):
         self.calculate_directions()
         self.rotate_car()
         self.move_car_to_point()
-    def rotate_and_move_car(self,point):
-        self.move_to_point(point)
+        self.brake_car()
+    def move_to_point(self,point = None ):
+        if point == None:
+            self.brake_car()
+        else:
+            self.destination = point 
+        self.movecar()
         self.draw_Car()
+
+        
 def events():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -106,17 +187,23 @@ pygame.init()
 CLOCK = pygame.time.Clock()
 DS = pygame.display.set_mode((W,H))
 pygame.display.set_caption("distance and direction")
+map = pygame.image.load('ring3.png')
 FPS = 120
-car = Car(DS)
+car = Car(DS,map)
 points =[]
 point = HW,HH
 click = True
 while True :
     events()
+    DS.blit(map, (0, 0))
     m =pygame.mouse.get_pressed()
-    if m[0]:
+    
+    if m[2]:
+        point = car.get_destination()
+    elif m[0] :
         point = pygame.mouse.get_pos()
-    car.rotate_and_move_car(point)
+    car.move_to_point(point)
+    
     pygame.display.update()
     CLOCK.tick(FPS)
     DS.fill(BLACK)
