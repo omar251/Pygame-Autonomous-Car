@@ -30,6 +30,10 @@ class Car:
         self.angle_of_rotation = self.current_angle = self.new_angle = self.rot_angle = 0 
         self.rotation_speed = 1    
         self.brakes = False
+        self.obstacle = False
+        self.calculate = True
+        self.calculate_rotation = True
+        self.calculate_direction_and_distance = True
         self.radar_length = self.max_radar = 100
     def rot_center(self,image, angle):
         orig_rect = image.get_rect()
@@ -90,61 +94,82 @@ class Car:
         self.update_radars()
         for r in self.front_radars:
             pos = r[0]
-            if r[1] < 50:color = RED
+            if r[1] < 70:color = RED
             else : color = GREEN
             pygame.draw.line(self.screen, color, self.rect.center, pos, 1)
             pygame.draw.circle(self.screen, color, pos, 5)  
         for r in self.back_radars:
             pos = r[0]
-            if r[1] < 50:color = RED
+            if r[1] < 70:color = RED
             else : color = BLUE
             pygame.draw.line(self.screen, color, self.rect.center, pos, 1)
             pygame.draw.circle(self.screen, color, pos, 5)  
   
     def get_max_back_destination(self):  
-        # self.update_radars()
+        self.update_radars()
         back_radar_distances = [i[1] for i in self.back_radars]
         back_destination = self.back_radars[back_radar_distances.index(max(back_radar_distances))][0] 
         
         return [back_destination,max(back_radar_distances)]
+    def check_obstacle(self):
+        self.obstacle = False
+        for radar in self.front_radars:
+            if radar[1] < 50:
+                self.obstacle = True
+                break
+        
     def get_destination(self):
+        self.update_radars()
         front_radar_distances = [i[1] for i in self.front_radars]
         max_back_destination,max_back_distance = self.get_max_back_destination()
         # print(max_back_distance,max(front_radar_distances))
         if front_radar_distances[1] == max(front_radar_distances):
             destination = self.front_radars[1][0]
-        elif max(front_radar_distances) < 50 :#max_back_distance:
-            destination = self.rect.center#max_back_destination
-            self.brake_car()
+        elif max(front_radar_distances) < max_back_distance:
+            destination = max_back_destination
+        
         else:
             destination = self.front_radars[front_radar_distances.index(max(front_radar_distances))][0] 
-
+            
         return destination
-    def calculate_directions(self): 
-        if self.distance == 0 and self.angle_of_rotation == 0 :
-            self.distance = int(math.hypot(self.destination[0] - self.source[0],self.destination[1] - self.source[1])/self.speed)  
-            
-            radians =math.atan2(self.destination[1] - self.source[1],self.destination[0] - self.source[0])
-            self.dx = math.cos(radians)*self.speed
-            self.dy = math.sin(radians)*self.speed
-            
+    def calculate_angle_of_rotation(self):
+        if self.calculate_rotation :
+            print("##########################calculating angle of rotation",self.calculate_rotation,"##########################")
             # self.new_angle = self.rot_angle = int(math.degrees(math.atan2(-(self.destination[1] - self.rect.center[1]), self.destination[0] - self.rect.center[0])))
+            self.distance = self.dx = self.dy = 0
             self.new_angle = int(math.degrees(math.atan2(-(self.destination[1] - self.source[1]), self.destination[0] - self.source[0])))
-            
-            self.angle_of_rotation = (self.new_angle - self.current_angle) % 360             
+            self.angle_of_rotation =(self.new_angle - self.current_angle) % 360
             if abs(self.angle_of_rotation) > 180:
-                self.angle_of_rotation = (self.angle_of_rotation - 180) * -int(self.angle_of_rotation/abs(self.angle_of_rotation))
-
+                self.angle_of_rotation = int(self.angle_of_rotation - (360 * (self.angle_of_rotation/abs(self.angle_of_rotation))))
+            
             self.angle_of_rotation = (self.new_angle - self.current_angle) % 180
             if abs(self.angle_of_rotation) > abs(abs(self.angle_of_rotation) - 180):
                 self.angle_of_rotation = int(abs(abs(self.angle_of_rotation) - 180) * -(abs(self.angle_of_rotation)/self.angle_of_rotation))
+            print("angle of rotation = ",self.angle_of_rotation)
+            self.calculate_rotation = False
+    def calculate_directions(self): 
+        if self.calculate_direction_and_distance :
+            print("##########################calculating distance:",self.calculate,"##########################")
+            print("between ",self.source,"and",self.destination)
+            self.distance = int(math.hypot(self.destination[0] - self.source[0],self.destination[1] - self.source[1])/self.speed)  
+            print("distance = ",self.distance)
+            
+            print("calculating directions")
+            radians =math.atan2(self.destination[1] - self.source[1],self.destination[0] - self.source[0])
+            self.dx = math.cos(radians)
+            self.dy = math.sin(radians)
+            print("direction in x = ",self.dx,"in y = ",self.dy)
+            self.calculate_direction_and_distance = False
 
     def rotate_car(self):
-        if not self.distance == 0 :
+        if not self.angle_of_rotation == 0:
             self.calculate_rotation_speed()
             self.current_angle += self.rotation_speed
+            self.current_angle = self.current_angle % 360
             self.angle_of_rotation -= self.rotation_speed
-            self.rotate_surface = self.rot_center(self.surface,self.current_angle)         
+            self.rotate_surface = self.rot_center(self.surface,self.current_angle) 
+            print("angle of rotation : ",self.angle_of_rotation,"and rotation speed = ",-self.rotation_speed) 
+            print("current angle =     ",self.current_angle) 
     def calculate_rotation_speed(self):
         speeds = []
         if self.angle_of_rotation == 0:
@@ -167,30 +192,50 @@ class Car:
                 self.calculated_speed = max(int(speeds.pop(int((len(speeds))/2))),self.speed)              
     def move_car_to_point(self):
         if not self.distance == 0 and self.angle_of_rotation == 0 :  
-            self.calculate_speed()     
+            self.calculate_speed()    
             self.distance -= self.calculated_speed
-            self.x += self.dx * self.calculated_speed
-            self.y += self.dy * self.calculated_speed
+            self.x += int(round(self.dx * self.calculated_speed))
+            self.y += int(round(self.dy * self.calculated_speed))
             self.rect.center = self.source = (self.x,self.y)
+            print("distance of :       ",self.distance,"with speed = ",-self.calculated_speed) 
+            print("current angle =     ",self.current_angle,"current position = ",self.source,"destination = ",self.destination)
     def brake_car(self):
+        print("braking car")
         self.destination = self.rect.center
         self.distance = self.angle_of_rotation = 0
+        self.brakes = True
     def movecar(self):
-        self.calculate_directions()
+        self.calculate_angle_of_rotation()
         self.rotate_car()
+        self.calculate_directions()
         self.move_car_to_point()
-        self.brake_car()
-    def move_to_point(self,point = None ):
-        if point == None or point == self.rect.center:
+        self.check_obstacle()
+        if self.obstacle:
+            self.brake_car()
+            print("obstacle:",self.obstacle)
+    def set_destination(self,point = None ):
+        if point == None or point == self.rect.center or self.brakes:
             self.brake_car()
             return
+        elif point == self.destination:
+            self.calculate_rotation = False
+            self.calculate_direction_and_distance = False
+        print("##########################destination point = ", point,"##########################")
         self.destination = point 
-        self.movecar()     
+        self.movecar()   
 def events():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
-            
+def prepare_car(car,point):    
+    car.brakes = False
+    car.calculate_rotation = True
+    car.calculate_direction_and_distance = True 
+    car.set_destination(point) 
+    # car.set_destination(point)
+    # car.set_destination(point)
+    # car.set_destination(point)
+    # car.set_destination(point)
 pygame.init()
 CLOCK = pygame.time.Clock()
 DS = pygame.display.set_mode((W,H))
@@ -209,9 +254,11 @@ while True :
     
     if m[2]:
         point = car.get_destination()
+        prepare_car(car,point)
     elif m[0] :
         point = pygame.mouse.get_pos()
-    car.move_to_point(point)
+        prepare_car(car,point)
+    car.set_destination(point)
     car.draw_Car()
     car.update_map(map)
     pygame.display.update()
