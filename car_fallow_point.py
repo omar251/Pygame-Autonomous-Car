@@ -35,6 +35,63 @@ class Car:
         self.calculate_rotation = True
         self.calculate_direction_and_distance = True
         self.radar_length = self.max_radar = 100
+    
+    def Right(self,speed = 1):   
+        self.angle_of_rotation = -speed
+        self.calculate_rotation_speed()
+        print(self.rotation_speed)
+        self.current_angle = (self.current_angle + self.rotation_speed) % 360
+        self.rotate_surface = self.rot_center(self.surface,self.current_angle)
+   
+    def Left(self,speed = 1):
+        self.angle_of_rotation = speed
+        self.calculate_rotation_speed()
+        print(self.rotation_speed)
+        self.current_angle = (self.current_angle + self.rotation_speed) % 360
+        self.rotate_surface = self.rot_center(self.surface,self.current_angle)
+       
+    def Forword(self,speed = 1):
+        x,y = self.rect.center
+        self.x += int(math.cos(math.radians(360 - self.current_angle)) * speed)
+        self.y += int(math.sin(math.radians(360 - self.current_angle)) * speed)
+        self.rect.center = self.source = self.x,self.y
+        
+    def Backword(self,speed = 1):
+        x,y = self.rect.center
+        self.x -= int(math.cos(math.radians(360 - self.current_angle)) * speed)
+        self.y -= int(math.sin(math.radians(360 - self.current_angle)) * speed)
+        self.rect.center = self.source = self.x,self.y
+
+    def move(self):
+        keys = pygame.key.get_pressed()
+        border = False
+        
+        if self.x < 20 or self.x > W - 20 or self.y > H - 20 or self.y < 20: border = True
+        
+        if self.x < 20: self.x = 20
+        elif self.x > W - 20: self.x = W - 20
+        
+        if self.y < 20: self.y= 20
+        elif self.y > H - 20: self.y = H - 20
+        
+        if not border:
+            if keys[pygame.K_UP]:
+                self.Forword(10)
+                if keys[pygame.K_RIGHT]:
+                    self.Right(45)
+                if keys[pygame.K_LEFT]:
+                    self.Left(45)
+                self.angle_of_rotation = self.distance = 0
+    
+            if keys[pygame.K_DOWN]:              
+                self.Backword(10)
+                if keys[pygame.K_RIGHT]:
+                    self.Left(45)
+                if keys[pygame.K_LEFT]:
+                    self.Right(45)
+                self.angle_of_rotation = self.distance = 0
+            
+            
     def rot_center(self,image, angle):
         orig_rect = image.get_rect()
         rot_image = pygame.transform.rotate(image, angle)
@@ -67,10 +124,10 @@ class Car:
                 self.check_radars(degree,100,-1)
         else:
             self.back_radars.clear()
-    def turn_radar_off(self,radar_type):
-            if radar_type == 1:
+    def turn_radar_off(self,front = 1,back = 1):
+            if front == 1:
                 self.front_radars.clear()
-            elif radar_type == -1:
+            if back == 1:
                 self.back_radars.clear()
     def check_radars(self,degree = 0, radar_length = 100,radar_type=0):
         self.max_radar = radar_length
@@ -198,7 +255,7 @@ class Car:
             self.y += int(round(self.dy * self.calculated_speed))
             self.rect.center = self.source = (self.x,self.y)
             print("distance of :       ",self.distance,"with speed = ",-self.calculated_speed) 
-            print("current angle =     ",self.current_angle,"current position = ",self.source,"destination = ",self.destination)
+            print("current position =  ",self.source,"destination = ",self.destination)
     def brake_car(self):
         print("braking car")
         self.destination = self.rect.center
@@ -259,6 +316,7 @@ while True :
         point = pygame.mouse.get_pos()
         prepare_car(car,point)
     car.set_destination(point)
+    car.move()
     car.draw_Car()
     car.update_map(map)
     pygame.display.update()
