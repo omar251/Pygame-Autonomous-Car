@@ -1,7 +1,7 @@
 import pygame
 import math
 from queue import PriorityQueue
-
+from Car import Car
 WIDTH = 600
 WIN = pygame.display.set_mode((WIDTH, WIDTH))
 pygame.display.set_caption("A* Path Finding Algorithm")
@@ -23,7 +23,7 @@ class Spot:
 		self.col = col
 		self.x = row * width
 		self.y = col * width
-		self.color = WHITE
+		self.color = BLACK
 		self.neighbors = []
 		self.width = width
 		self.total_rows = total_rows
@@ -38,7 +38,7 @@ class Spot:
 		return self.color == GREEN
 
 	def is_barrier(self):
-		return self.color == BLACK
+		return self.color == WHITE
 
 	def is_start(self):
 		return self.color == ORANGE
@@ -47,7 +47,7 @@ class Spot:
 		return self.color == TURQUOISE
 
 	def reset(self):
-		self.color = WHITE
+		self.color = BLACK
 
 	def make_start(self):
 		self.color = ORANGE
@@ -59,7 +59,7 @@ class Spot:
 		self.color = GREEN
 
 	def make_barrier(self):
-		self.color = BLACK
+		self.color = WHITE
 
 	def make_end(self):
 		self.color = TURQUOISE
@@ -93,11 +93,13 @@ def h(p1, p2):
 	x2, y2 = p2
 	return abs(x1 - x2) + abs(y1 - y2)
 
-
+path = []
 def reconstruct_path(came_from, current, draw):
+	global path
 	while current in came_from:
 		current = came_from[current]
 		current.make_path()
+		path.append((current.x,current.y))
 		draw()
 
 
@@ -162,19 +164,22 @@ def make_grid(rows, width):
 def draw_grid(win, rows, width):
 	gap = width // rows
 	for i in range(rows):
-		pygame.draw.line(win, GREY, (0, i * gap), (width, i * gap))
+		pygame.draw.line(win, BLACK, (0, i * gap), (width, i * gap))
 		for j in range(rows):
-			pygame.draw.line(win, GREY, (j * gap, 0), (j * gap, width))
+			pygame.draw.line(win, BLACK, (j * gap, 0), (j * gap, width))
 
 
-def draw(win, grid, rows, width):
-	win.fill(WHITE)
+def draw(win, grid, rows, width,car):
+	win.fill(BLACK)
 
 	for row in grid:
 		for spot in row:
 			spot.draw(win)
-
 	draw_grid(win, rows, width)
+	pygame.image.save(win,"map.png")
+	car.update_map(pygame.image.load('map.png'))
+	car.draw_Car()
+	car.draw_radar()
 	pygame.display.update()
 
 
@@ -189,15 +194,17 @@ def get_clicked_pos(pos, rows, width):
 
 
 def main(win, width):
-	ROWS = 50
+	ROWS = 20
 	grid = make_grid(ROWS, width)
-
+	car = Car(win,pygame.image.load('map.png'))
+	point = None
 	start = None
 	end = None
+	global path
 
 	run = True
 	while run:
-		draw(win, grid, ROWS, width)
+		draw(win, grid, ROWS, width,car)
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				run = False
@@ -233,12 +240,26 @@ def main(win, width):
 						for spot in row:
 							spot.update_neighbors(grid)
 
-					algorithm(lambda: draw(win, grid, ROWS, width), grid, start, end)
+					algorithm(lambda: draw(win, grid, ROWS, width,car), grid, start, end)
 
 				if event.key == pygame.K_c:
+					path.clear()
+					point = None
 					start = None
 					end = None
 					grid = make_grid(ROWS, width)
+				if event.key == pygame.K_x:
+					if car.reached:
+						point = car.get_steps(0,path)
+						print(point)
+						car.reached = False
+					if len(path) == 0:
+						car.reached = True
+					car.prepare_car()
+		car.set_destination(point)
+		print(path,car.reached)
+		car.move()
+		
 
 	pygame.quit()
 
