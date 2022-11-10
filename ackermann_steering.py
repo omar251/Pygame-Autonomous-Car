@@ -25,6 +25,7 @@ class Car:
         self.steering_speed = 1
 
     def rotate(self):
+        self.current_angle = self.current_angle % 360
         self.rotated_offset = self.offset.rotate(self.current_angle)
         self.rotate_surface = pygame.transform.rotozoom(self.surface, -self.current_angle, 1)  
         self.rect = self.rotate_surface.get_rect(center=self.source+self.rotated_offset) 
@@ -36,12 +37,19 @@ class Car:
         self.raduis = 30/math.sin(math.radians(self.angle_of_rotation)) if not self.angle_of_rotation == 0 else 0
         self.rear_wheels  = pygame.math.Vector2(0,self.raduis).rotate(self.current_angle)
         self.front_wheels = pygame.math.Vector2(0,self.raduis).rotate(self.current_angle + self.angle_of_rotation)
-        print(self.angle_of_rotation)
+        direction = self.speed*(math.cos(math.radians(self.current_angle))),self.speed * (math.sin(math.radians(self.current_angle)))
+        angle_offset = math.copysign(0 if (self.angle_of_rotation == 0) else self.speed*(60/self.raduis),self.angle_of_rotation)
         if keys[pygame.K_UP]:
-            self.source += self.speed*(math.cos(math.radians(self.current_angle))),self.speed * (math.sin(math.radians(self.current_angle)))
-            self.rect = self.rotate_surface.get_rect(center=self.source+self.rotated_offset) 
-            self.rotate()
-            self.update_angle()
+            self.source += direction
+            self.current_angle += angle_offset
+            self.angle_of_rotation -= angle_offset
+        if keys[pygame.K_DOWN]:
+            self.source -= direction
+            self.current_angle -= angle_offset
+            self.angle_of_rotation -= angle_offset
+        self.rect = self.rotate_surface.get_rect(center=self.source+self.rotated_offset) 
+        self.rotate()
+        
         
     def update_angle(self):
         self.current_angle += math.copysign(0 if (self.angle_of_rotation == 0) else self.speed*(60/self.raduis),self.angle_of_rotation)
