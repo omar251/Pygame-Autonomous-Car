@@ -6,7 +6,6 @@ RED = (255,0,0,255)
 BLUE = (0,0,255,255)
 GREEN = (0,255,0,255)
 W,H =600,600
-car_shift = 100,100
 HW,HH =(W/2),(H/2)
 AREA = W * H
 class Car:
@@ -87,7 +86,7 @@ class Car:
     #                 self.Right()
         pass
 
-    def move(self):
+    def steering_move(self):
         # self.brake_car()
         keys = pygame.key.get_pressed()
         if not self.angle_of_rotation >= 30 and keys[pygame.K_RIGHT]:self.angle_of_rotation += self.steering_speed
@@ -117,7 +116,7 @@ class Car:
         self.rect = self.rotate_surface.get_rect(center=self.source + self.rotated_offset)  
          
     def draw_Car(self): 
-        pygame.draw.rect(self.screen,RED,self.rect,1)
+        # pygame.draw.rect(self.screen,RED,self.rect,1)
         self.screen.blit(self.rotate_surface, self.rect)   
         # self.draw_radar()
         pygame.draw.circle(self.screen,BLUE,self.destination,5)
@@ -278,7 +277,6 @@ class Car:
                 self.source += direction
             self.current_angle += angle_offset
             self.angle_of_rotation -= angle_offset 
-            print(distance,self.reverse)
             self.rect = self.rotate_surface.get_rect(center=self.source+self.rotated_offset) 
             self.rotate()
             
@@ -331,42 +329,42 @@ class Car:
         if index > len(list_of_steps)-1 or len(list_of_steps) == 0:
             return None
         return list_of_steps.pop(index)
-    
-def events():
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
 
-pygame.init()
-CLOCK = pygame.time.Clock()
-DS = pygame.display.set_mode((W,H))
-pygame.display.set_caption("distance and direction")
-map = pygame.image.load('map.png')
-FPS = 120
-car = Car(DS,map)
-points = [(60, 360), (60, 330), (60, 300), (60, 270), (60, 240), (60, 210), (60, 180), (90, 180), (120, 180), (150, 180), (180, 180), (210, 180), (240, 180), (270, 180), (300, 180), (330, 180), (360, 180)]
-points.reverse()
-point = HW,HH
-click = True
-while True :
-    events()
+def main():
+    pygame.init()
+    CLOCK = pygame.time.Clock()
+    DS = pygame.display.set_mode((W,H))
+    pygame.display.set_caption("distance and direction")
     map = pygame.image.load('map.png')
-    DS.blit(map, (0, 0))
-    m =pygame.mouse.get_pressed()
-    mouse = pygame.mouse.get_pos()
-    if m[2]:
-        if car.reached:
-            point = car.get_steps(0,points)
-            print(point)
-            car.reached = False
-        car.prepare_car()
-    elif m[0] :
-        point = mouse
-        car.prepare_car()
-    car.set_destination(point)
-    car.move()
-    car.draw_Car()
-    car.update_map(map)
-    pygame.display.update()
-    CLOCK.tick(FPS)
-    DS.fill(BLACK)
+    FPS = 120
+    car = Car(DS,map)
+    points = [(60, 360), (60, 330), (60, 300), (60, 270), (60, 240), (60, 210), (60, 180), (90, 180), (120, 180), (150, 180), (180, 180), (210, 180), (240, 180), (270, 180), (300, 180), (330, 180), (360, 180)]
+    points.reverse()
+    point = HW,HH
+    while True :
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+        map = pygame.image.load('map.png')
+        DS.blit(map, (0, 0))
+        m =pygame.mouse.get_pressed()
+        mouse = pygame.mouse.get_pos()
+        if m[2]:
+            if car.reached:
+                point = car.get_steps(0,points)
+                print(point)
+                car.reached = False
+            car.prepare_car()
+        elif m[0] :
+            point = mouse
+            car.prepare_car()
+        car.set_destination(point)
+        car.steering_move()
+        car.draw_Car()
+        car.update_map(map)
+        pygame.display.update()
+        CLOCK.tick(FPS)
+        DS.fill(BLACK)
+
+if __name__ == "__main__":
+    main()
