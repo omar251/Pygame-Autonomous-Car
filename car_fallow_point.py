@@ -13,8 +13,9 @@ class Car:
         self.map = map
         self.map_H,self.map_W = map.get_height(),map.get_width()
         self.screen  = screen
-        self.length =self.width= 150
-        self.l = 20
+        self.length =self.width= 50
+        self.l = self.length * 0.3
+        self.l2 = self.l * 2
         self.rotated_offset = self.offset = pygame.math.Vector2(self.l,0)
         self.front_radars =[]
         self.back_radars = []
@@ -33,59 +34,18 @@ class Car:
         self.calculate_rotation = True
         self.calculate_direction_and_distance = True
         self.reached = True
-        self.radar_length = self.max_radar = 150
+        self.max_radar = self.length * 0.7
+        self.min_radar = self.max_radar * 0.9
         self.time = 15
         self.steering_speed = 1
         self.raduis= 0 
         self.rear_wheels = self.front_wheels = pygame.math.Vector2(0,0)
         self.reverse = True
     
-    def Right(self,speed = 3):   
-        self.rotate(speed)
-   
-    def Left(self,speed = 3):
-        self.rotate(-speed)
-       
-    def Forword(self,speed = 5):     
-        self.directions *=0 
-        self.directions += math.cos(math.radians(self.current_angle)),math.sin(math.radians(self.current_angle))
-        self.source += self.directions * speed
-        self.rect = self.rotate_surface.get_rect(center = self.source + self.rotated_offset)
-        
-    def Backword(self,speed = 5):
-        self.directions *=0 
-        self.directions += math.cos(math.radians(self.current_angle)),math.sin(math.radians(self.current_angle))
-        self.source -= self.directions * speed
-        self.rect = self.rotate_surface.get_rect(center = self.source + self.rotated_offset)
-
-    def move(self):
-    #     keys = pygame.key.get_pressed()
-    #     border = False
-        
-    #     if self.source[0] < 20 or self.source[0] > W - 20 or self.source[1] > H - 20 or self.source[1] < 20: border = True
-        
-    #     if self.source[0] < 20: self.source[0] = 20
-    #     elif self.source[0] > W - 20: self.source[0] = W - 20
-        
-    #     if self.source[1] < 20: self.source[1]= 20
-    #     elif self.source[1] > H - 20: self.source[1] = H - 20
-        
-    #     if not border:
-    #         if keys[pygame.K_UP]:
-    #             self.Forword()
-    #             if keys[pygame.K_RIGHT]:
-    #                 self.Right()
-    #             if keys[pygame.K_LEFT]:
-    #                 self.Left()
+    def draw_path(self,path):
+        for point in path:
+            pygame.draw.circle(self.screen,BLUE,point,5)
     
-    #         if keys[pygame.K_DOWN]:              
-    #             self.Backword()
-    #             if keys[pygame.K_RIGHT]:
-    #                 self.Left()
-    #             if keys[pygame.K_LEFT]:
-    #                 self.Right()
-        pass
-
     def steering_move(self):
         # self.brake_car()
         keys = pygame.key.get_pressed()
@@ -118,9 +78,11 @@ class Car:
     def draw_Car(self): 
         # pygame.draw.rect(self.screen,RED,self.rect,1)
         self.screen.blit(self.rotate_surface, self.rect)   
-        # self.draw_radar()
+        self.draw_radar()
         pygame.draw.circle(self.screen,BLUE,self.destination,5)
         pygame.draw.circle(self.screen,GREEN,self.rect.center,5)
+        pygame.draw.circle(self.screen,GREEN,self.source,self.l2,1)
+        # pygame.draw.circle(self.screen,GREEN,self.rect.center,self.max_radar,1)
         # x = 100*math.cos(math.radians((self.current_angle)))+ (self.rect.centerx)
         # y = 100*math.sin(math.radians((self.current_angle)))+ (self.rect.centery) 
         # pygame.draw.line(self.screen,GREEN,self.rect.center, (x,y) , 3)
@@ -138,39 +100,35 @@ class Car:
         if front == 1:
             self.front_radars.clear()
             for degree in [-30,0,30]:
-                self.check_radars(degree,150,1)
+                self.check_radars(degree,self.max_radar,1)
             self.back_radars.clear()
         else:
             self.front_radars.clear()
         if back == 1:    
             self.back_radars.clear()
             for degree in [135,-135]:
-                self.check_radars(degree,150,-1)
+                self.check_radars(degree,self.max_radar,-1)
         else:
             self.back_radars.clear()
-            
-    def turn_radar_off(self,front = 1,back = 1):
-            if front == 1:
-                self.front_radars.clear()
-            if back == 1:
-                self.back_radars.clear()
                 
-    def check_radars(self,degree = 0, radar_length = 100,radar_type=0):
-        self.max_radar = radar_length
-        self.radar_length = 0
+    def check_radars(self,degree = 0, length = 100,radar_type=0):
+        self.max_radar = length
+        radar_length = 0
         radian = math.radians(self.current_angle + degree)
-        dx,dy = int(math.cos(radian) * self.radar_length),int(math.sin(radian) * self.radar_length)
-        self.radar = x,y = self.rect.center[0] + dx, self.rect.center[1] + dy
-        while not self.map.get_at((x, y)) == WHITE and self.radar_length < self.max_radar:
-            self.radar_length += 1
+        radar_vector = pygame.math.Vector2(math.cos(radian),math.sin(radian)) * radar_length
+        center_point = pygame.math.Vector2(self.rect.center[0],self.rect.center[1])
+        radar_vector_length = center_point + radar_vector
+        x,y = int(radar_vector_length[0]),int(radar_vector_length[1])
+        while not self.map.get_at((x, y)) == WHITE and radar_length < self.max_radar:
+            radar_length += 1
             radian = math.radians(self.current_angle + degree)
-            dx,dy = int(math.cos(radian) * self.radar_length),int(math.sin(radian) * self.radar_length)
-            x,y = self.rect.center[0] + dx, self.rect.center[1] + dy  
+            radar_vector = pygame.math.Vector2(math.cos(radian),math.sin(radian)) * radar_length
+            radar_vector_length = center_point + radar_vector
+            x,y = int(radar_vector_length[0]),int(radar_vector_length[1])
             if not (0<x<self.map_W and 0<y<self.map_H):
                 break
-
-        radar_distance = int(math.hypot(x - self.rect.center[0],y - self.rect.center[1]))  
-        # self.radars.append([(x,y),radar_distance])
+            
+        radar_distance = pygame.math.Vector2(radar_vector_length - center_point).length() 
         if radar_type == -1:
             self.back_radars.append([(x,y),radar_distance])
         elif radar_type == 1:
@@ -180,13 +138,13 @@ class Car:
         self.update_radars()
         for r in self.front_radars:
             pos = r[0]
-            if r[1] < self.length + 50:color = RED
+            if r[1] < self.min_radar :color = RED
             else : color = GREEN
             pygame.draw.line(self.screen, color, self.rect.center, pos, 1)
             pygame.draw.circle(self.screen, color, pos, 5)  
         for r in self.back_radars:
             pos = r[0]
-            if r[1] < self.length + 50:color = RED
+            if r[1] < self.min_radar :color = RED
             else : color = BLUE
             pygame.draw.line(self.screen, color, self.rect.center, pos, 1)
             pygame.draw.circle(self.screen, color, pos, 5)  
@@ -201,7 +159,7 @@ class Car:
     def check_obstacle(self):
         self.obstacle = False
         for radar in self.front_radars:
-            if radar[1] < self.length + 50:
+            if radar[1] < self.min_radar :
                 self.obstacle = True
                 break
         
@@ -256,9 +214,10 @@ class Car:
         distance = pygame.math.Vector2(self.destination - self.source).length()
         vdistance = pygame.math.Vector2(self.destination - self.source) / distance
         car_orientation = -int(vdistance.dot(self.source - self.rect.center))
-        # if distance < 50:
-        #     self.angle_of_rotation = 0
-        if not round(self.angle_of_rotation) == 0 :      
+        if distance <= self.l2:
+            self.brake_car()
+            return
+        if not round(self.angle_of_rotation) == 0 :       
             # self.speed = self.angle_of_rotation / self.time
             # self.current_angle += self.speed     
             # self.rotate()
@@ -271,8 +230,8 @@ class Car:
             radians = math.radians(self.current_angle)
             direction = self.steering_speed * pygame.math.Vector2(math.cos(radians),math.sin(radians))
             angle_offset = math.copysign(0 if (self.angle_of_rotation == 0) else self.steering_speed*(60/self.raduis),self.angle_of_rotation)
-            if self.reverse and False:
-                self.source -= direction
+            if self.reverse and distance > self.l:
+                self.source -= direction     
             else:
                 self.source += direction
             self.current_angle += angle_offset
@@ -295,20 +254,21 @@ class Car:
         
     def destination_reached(self):
         self.calculate_directions()
-        distance = pygame.math.Vector2(self.destination - self.source -self.rotated_offset).length()
-        if self.source == self.calculated_destination or distance < self.l:
+        distance = pygame.math.Vector2(self.destination - self.source).length()
+        if distance <= self.l2 or self.obstacle:
             self.reached = True
         else: 
             self.reached = False
             
     def movecar(self):
-        self.rotate_car()
+        self.destination_reached()
         self.check_obstacle()
-        if self.obstacle and False:
+        self.rotate_car()
+        if self.obstacle :
             self.brake_car()
             return
         self.move_car_to_point()
-        self.destination_reached()
+        
   
     def set_destination(self,point = None ):
         if point == None or point == self.source or self.brakes:
@@ -328,6 +288,7 @@ class Car:
     def get_steps(self,index = 0,list_of_steps = []):
         if index > len(list_of_steps)-1 or len(list_of_steps) == 0:
             return None
+        self.reached = False
         return list_of_steps.pop(index)
 
 def main():
@@ -339,7 +300,9 @@ def main():
     FPS = 120
     car = Car(DS,map)
     points = [(60, 360), (60, 330), (60, 300), (60, 270), (60, 240), (60, 210), (60, 180), (90, 180), (120, 180), (150, 180), (180, 180), (210, 180), (240, 180), (270, 180), (300, 180), (330, 180), (360, 180)]
-    points.reverse()
+    points = [(150, 60), (180, 60), (180, 90), (180, 120), (180, 150), (180, 180), (210, 180), (240, 180), (270, 180), (300, 180), (330, 180), (360, 180), (390, 180), (420, 180), (450, 180), (480, 180), (510, 180), (510, 210), (510, 240), (480, 240), (120, 90), (120, 120), (120, 150), (120, 180), (120, 210), (120, 240), (120, 270), (120, 300), (150, 300), (180, 300), (210, 300), (240, 300), (270, 300), (300, 300), (330, 300), (330, 330), (330, 360), (330, 390), (330, 420), (300, 420), (270, 420), (240, 420), (210, 420), (180, 420), (150, 420), (120, 420), (120, 450), (120, 480), (150, 480), (180, 480), (210, 480), (240, 480), (270, 480), (300, 480), (330, 480), (360, 480), (390, 480), (420, 480), (450, 480), (480, 480), (480, 450), (480, 420), (480, 390), (450, 390), (420, 390), (390, 390), (390, 360), (390, 330), (390, 300), (390, 270), (390, 240), (420, 240), (450, 240), (480, 240), (120, 90), (120, 120), (120, 150), (120, 180), (120, 210), (120, 240), (120, 270), (120, 300), (150, 300), (180, 300), (210, 300), (240, 300), (270, 300), (300, 300), (330, 300), (330, 330), (330, 360), (330, 390), (330, 420), (300, 420), (270, 420), (240, 420), (210, 420), (180, 420), (150, 420), (120, 420), (120, 450), (120, 480), (150, 480), (180, 480), (210, 480), (240, 480), (270, 480), (300, 480), (330, 480), (360, 480), (390, 480), (420, 480), (450, 480), (480, 480), (480, 450), (480, 420), (480, 390), (450, 390), (420, 390), (390, 390), (390, 360), (390, 330), (390, 300), (390, 270), (390, 240), (420, 240), (450, 240), (480, 240)]
+    points = [(120, 120), (120, 150), (120, 180), (120, 210), (120, 240), (120, 270), (120, 300), (150, 300), (180, 300), (210, 300), (240, 300), (270, 300), (300, 300), (330, 300), (330, 330), (330, 360), (330, 390), (330, 420), (300, 420), (270, 420), (240, 420), (210, 420), (180, 420), (150, 420), (120, 420), (120, 450), (120, 480), (150, 480), (180, 480), (210, 480), (240, 480), (270, 480), (300, 480), (330, 480), (360, 480), (390, 480), (420, 480), (450, 480), (480, 480), (480, 450), (480, 420), (480, 390), (450, 390), (420, 390), (390, 390), (390, 360), (390, 330), (390, 300), (390, 270), (390, 240), (420, 240), (450, 240), (480, 240)]
+    # points.reverse()
     point = HW,HH
     while True :
         for event in pygame.event.get():
@@ -352,12 +315,11 @@ def main():
         if m[2]:
             if car.reached:
                 point = car.get_steps(0,points)
-                print(point)
-                car.reached = False
-            car.prepare_car()
+                print(points)
         elif m[0] :
             point = mouse
-            car.prepare_car()
+        car.draw_path(points)
+        car.prepare_car()
         car.set_destination(point)
         car.steering_move()
         car.draw_Car()

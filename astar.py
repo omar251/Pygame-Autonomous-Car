@@ -1,7 +1,8 @@
 import pygame
 import math
 from queue import PriorityQueue
-from Car import Car
+# from Car import Car
+from car_fallow_point import Car
 WIDTH = 600
 WIN = pygame.display.set_mode((WIDTH, WIDTH))
 pygame.display.set_caption("A* Path Finding Algorithm")
@@ -99,7 +100,7 @@ def reconstruct_path(came_from, current, draw):
 	while current in came_from:
 		current = came_from[current]
 		current.make_path()
-		path.append((current.x,current.y))
+		path.append((current.x+15,current.y+15))
 		draw()
 
 
@@ -201,6 +202,7 @@ def main(win, width):
 	start = None
 	end = None
 	global path
+	# path.reverse()
 
 	run = True
 	while run:
@@ -248,17 +250,18 @@ def main(win, width):
 					start = None
 					end = None
 					grid = make_grid(ROWS, width)
-				if event.key == pygame.K_x:
-					if car.reached:
-						point = car.get_steps(0,path)
-						print(point)
-						car.reached = False
-					if len(path) == 0:
-						car.reached = True
-					car.prepare_car()
+					car.reached = True
+		# if event.key == pygame.K_x:
+		if car.reached:
+			point = car.get_steps(0,path)
+		# 	print(point)
+		# 	car.reached = False
+		# if len(path) == 0:
+		# 	car.reached = True
+		car.prepare_car()
 		car.set_destination(point)
-		print(path,car.reached)
-		car.move()
+		print(path,point,car.reached)
+		# car.move()
 		
 
 	pygame.quit()
