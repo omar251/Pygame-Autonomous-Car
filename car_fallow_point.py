@@ -82,6 +82,8 @@ class Car:
         pygame.draw.circle(self.screen,BLUE,self.destination,5)
         pygame.draw.circle(self.screen,GREEN,self.rect.center,5)
         pygame.draw.circle(self.screen,GREEN,self.source,self.l2,1)
+        pygame.draw.circle(self.screen,GREEN,self.rect.center,self.l2,1)
+        pygame.draw.circle(self.screen,RED,self.destination,5)
         # pygame.draw.circle(self.screen,GREEN,self.rect.center,self.max_radar,1)
         # x = 100*math.cos(math.radians((self.current_angle)))+ (self.rect.centerx)
         # y = 100*math.sin(math.radians((self.current_angle)))+ (self.rect.centery) 
@@ -112,14 +114,13 @@ class Car:
             self.back_radars.clear()
                 
     def check_radars(self,degree = 0, length = 100,radar_type=0):
-        self.max_radar = length
         radar_length = 0
         radian = math.radians(self.current_angle + degree)
         radar_vector = pygame.math.Vector2(math.cos(radian),math.sin(radian)) * radar_length
         center_point = pygame.math.Vector2(self.rect.center[0],self.rect.center[1])
         radar_vector_length = center_point + radar_vector
         x,y = int(radar_vector_length[0]),int(radar_vector_length[1])
-        while not self.map.get_at((x, y)) == WHITE and radar_length < self.max_radar:
+        while not self.map.get_at((x, y)) == WHITE and radar_length < length:
             radar_length += 1
             radian = math.radians(self.current_angle + degree)
             radar_vector = pygame.math.Vector2(math.cos(radian),math.sin(radian)) * radar_length
@@ -211,10 +212,12 @@ class Car:
 
     def rotate_car(self):
         self.calculate_angle_of_rotation() 
+        self.destination = pygame.math.Vector2(self.destination)
         distance = pygame.math.Vector2(self.destination - self.source).length()
+        distance_center = pygame.math.Vector2(self.destination - self.rect.center).length()
         vdistance = pygame.math.Vector2(self.destination - self.source) / distance
         car_orientation = -int(vdistance.dot(self.source - self.rect.center))
-        if distance <= self.l2:
+        if distance_center <= self.l2 and distance <= self.l2 :
             self.brake_car()
             return
         if not round(self.angle_of_rotation) == 0 :       
@@ -269,7 +272,7 @@ class Car:
             return
         self.move_car_to_point()
         
-  
+        
     def set_destination(self,point = None ):
         if point == None or point == self.source or self.brakes:
             self.brake_car()
@@ -303,6 +306,7 @@ def main():
     points = [(150, 60), (180, 60), (180, 90), (180, 120), (180, 150), (180, 180), (210, 180), (240, 180), (270, 180), (300, 180), (330, 180), (360, 180), (390, 180), (420, 180), (450, 180), (480, 180), (510, 180), (510, 210), (510, 240), (480, 240), (120, 90), (120, 120), (120, 150), (120, 180), (120, 210), (120, 240), (120, 270), (120, 300), (150, 300), (180, 300), (210, 300), (240, 300), (270, 300), (300, 300), (330, 300), (330, 330), (330, 360), (330, 390), (330, 420), (300, 420), (270, 420), (240, 420), (210, 420), (180, 420), (150, 420), (120, 420), (120, 450), (120, 480), (150, 480), (180, 480), (210, 480), (240, 480), (270, 480), (300, 480), (330, 480), (360, 480), (390, 480), (420, 480), (450, 480), (480, 480), (480, 450), (480, 420), (480, 390), (450, 390), (420, 390), (390, 390), (390, 360), (390, 330), (390, 300), (390, 270), (390, 240), (420, 240), (450, 240), (480, 240), (120, 90), (120, 120), (120, 150), (120, 180), (120, 210), (120, 240), (120, 270), (120, 300), (150, 300), (180, 300), (210, 300), (240, 300), (270, 300), (300, 300), (330, 300), (330, 330), (330, 360), (330, 390), (330, 420), (300, 420), (270, 420), (240, 420), (210, 420), (180, 420), (150, 420), (120, 420), (120, 450), (120, 480), (150, 480), (180, 480), (210, 480), (240, 480), (270, 480), (300, 480), (330, 480), (360, 480), (390, 480), (420, 480), (450, 480), (480, 480), (480, 450), (480, 420), (480, 390), (450, 390), (420, 390), (390, 390), (390, 360), (390, 330), (390, 300), (390, 270), (390, 240), (420, 240), (450, 240), (480, 240)]
     points = [(120, 120), (120, 150), (120, 180), (120, 210), (120, 240), (120, 270), (120, 300), (150, 300), (180, 300), (210, 300), (240, 300), (270, 300), (300, 300), (330, 300), (330, 330), (330, 360), (330, 390), (330, 420), (300, 420), (270, 420), (240, 420), (210, 420), (180, 420), (150, 420), (120, 420), (120, 450), (120, 480), (150, 480), (180, 480), (210, 480), (240, 480), (270, 480), (300, 480), (330, 480), (360, 480), (390, 480), (420, 480), (450, 480), (480, 480), (480, 450), (480, 420), (480, 390), (450, 390), (420, 390), (390, 390), (390, 360), (390, 330), (390, 300), (390, 270), (390, 240), (420, 240), (450, 240), (480, 240)]
     # points.reverse()
+    count = -1
     point = HW,HH
     while True :
         for event in pygame.event.get():
@@ -314,8 +318,18 @@ def main():
         mouse = pygame.mouse.get_pos()
         if m[2]:
             if car.reached:
-                point = car.get_steps(0,points)
-                print(points)
+                # point = car.get_steps(0,points)
+                if len(points) > 0 :
+                    if count < len(points)-1 and not car.obstacle: 
+                        count += 1
+                        point = points[count]
+                        car.reached = False
+                    elif car.obstacle and count >= 1:
+                        count -= 1
+                        point = points[count]
+                        car.reached = False
+                        # points.clear()  
+                    print(count,point)
         elif m[0] :
             point = mouse
         car.draw_path(points)
