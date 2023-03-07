@@ -77,7 +77,6 @@ class Car:
         self.rotate_surface = pygame.transform.rotozoom(self.surface, -self.current_angle, 1)  
         self.rect = self.rotate_surface.get_rect(center=self.source + self.rotated_offset)  
     def draw_controls(self):   
-        
         right=BLUE
         left=BLUE
         up=BLUE
