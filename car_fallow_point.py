@@ -41,6 +41,8 @@ class Car:
         self.raduis= 0 
         self.rear_wheels = self.front_wheels = pygame.math.Vector2(0,0)
         self.reverse = True
+        self.car_orientation = 0
+        self.dir = 0
     
     def draw_path(self,path):
         for point in path:
@@ -74,11 +76,32 @@ class Car:
         self.rotated_offset = self.offset.rotate(self.current_angle)
         self.rotate_surface = pygame.transform.rotozoom(self.surface, -self.current_angle, 1)  
         self.rect = self.rotate_surface.get_rect(center=self.source + self.rotated_offset)  
-         
+    def draw_controls(self):   
+        
+        right=BLUE
+        left=BLUE
+        up=BLUE
+        down=BLUE
+        right_area = left_area = 10
+        if round(self.angle_of_rotation) > 0:
+            right = (abs(self.angle_of_rotation)*6,0,255-abs(self.angle_of_rotation)*6)
+        elif round(self.angle_of_rotation) < 0:
+            left = (abs(self.angle_of_rotation)*6,0,255-abs(self.angle_of_rotation)*6)
+        if self.dir > 0 and not self.reached:
+            up = RED
+        elif self.dir < 0 and not self.reached:
+            down = RED
+        print(self.dir,self.angle_of_rotation,self.reached)
+        pygame.draw.rect(self.screen,up,(20,20,10,10))
+        pygame.draw.rect(self.screen,right,(30,30,10,10))
+        pygame.draw.rect(self.screen,left,(10,30,10,10))
+        pygame.draw.rect(self.screen,down,(20,40,10,10))
+            
     def draw_Car(self): 
         # pygame.draw.rect(self.screen,RED,self.rect,1)
         self.screen.blit(self.rotate_surface, self.rect)   
-        self.draw_radar()
+        # self.draw_radar()
+        self.draw_controls()
         pygame.draw.circle(self.screen,BLUE,self.destination,5)
         pygame.draw.circle(self.screen,GREEN,self.rect.center,5)
         pygame.draw.circle(self.screen,GREEN,self.source,self.l2,1)
@@ -234,9 +257,11 @@ class Car:
             direction = self.steering_speed * pygame.math.Vector2(math.cos(radians),math.sin(radians))
             angle_offset = math.copysign(0 if (self.angle_of_rotation == 0) else self.steering_speed*(60/self.raduis),self.angle_of_rotation)
             if self.reverse and distance > self.l:
-                self.source -= direction     
+                self.source -= direction 
+                self.dir = -1    
             else:
                 self.source += direction
+                self.dir = 1
             self.current_angle += angle_offset
             self.angle_of_rotation -= angle_offset 
             self.rect = self.rotate_surface.get_rect(center=self.source+self.rotated_offset) 
@@ -262,8 +287,9 @@ class Car:
             self.reached = True
         else: 
             self.reached = False
-            
+
     def movecar(self):
+        # print(self.angle_of_rotation)
         self.destination_reached()
         self.check_obstacle()
         self.rotate_car()
